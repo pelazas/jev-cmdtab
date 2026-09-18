@@ -6,8 +6,8 @@ enum HUDMetrics {
     static let iconSpacing: CGFloat = 10
     static let highlightPad: CGFloat = 0
     static let padH: CGFloat = 14
-    static let padTop: CGFloat = 7
-    static let padBottom: CGFloat = 0
+    static let padTop: CGFloat = 15
+    static let padBottom: CGFloat = 8
     static let nameHeight: CGFloat = 13
     static let nameGap: CGFloat = 0
     static let nameLift: CGFloat = 2

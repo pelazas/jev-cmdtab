@@ -33,11 +33,22 @@ final class SwitcherHUD {
         panel.acceptsMouseMovedEvents = true
         panel.becomesKeyOnlyIfNeeded = true
 
-        glass.style = .regular
+        glass.style = .clear
+        glass.tintColor = nil
         glass.autoresizingMask = [.width, .height]
         glass.contentView = root
         root.addSubview(row)
         panel.contentView = glass
+        crystalize(glass)
+    }
+
+    private func crystalize(_ glass: NSGlassEffectView) {
+        glass.style = .clear
+        glass.tintColor = nil
+        glass.setValue(1, forKey: "_contentLensing")
+        glass.setValue(1, forKey: "_interactionState")
+        glass.setValue(0, forKey: "_subduedState")
+        glass.setValue(0, forKey: "_scrimState")
     }
 
     func show(apps: [SwitcherApp], holdCommand: Bool = false, backward: Bool = false) {
@@ -53,8 +64,9 @@ final class SwitcherHUD {
         layoutOnScreen()
         panel.appearance = NSApp.effectiveAppearance
         glass.appearance = NSApp.effectiveAppearance
+        crystalize(glass)
         panel.alphaValue = 1
-        panel.orderFrontRegardless()
+        panel.makeKeyAndOrderFront(nil)
         isVisible = true
         watchCommandHold()
     }

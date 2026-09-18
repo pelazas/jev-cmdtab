@@ -33,7 +33,6 @@ final class SwitcherHUD {
         panel.becomesKeyOnlyIfNeeded = true
 
         root.wantsLayer = true
-        root.layer?.backgroundColor = NSColor(calibratedRed: 0.1, green: 0.38, blue: 1, alpha: 0.96).cgColor
         root.autoresizingMask = [.width, .height]
         root.addSubview(row)
         panel.contentView = root
@@ -134,15 +133,12 @@ final class SwitcherHUD {
         )
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
         root.frame = NSRect(origin: .zero, size: size)
-        root.layer?.cornerRadius = size.height / 2
-        root.layer?.masksToBounds = true
 
         let cell = icon + HUDMetrics.highlightPad * 2
-        let cap = size.height / 2
         row.frame = NSRect(
-            x: cap,
+            x: HUDMetrics.padH,
             y: HUDMetrics.padBottom + HUDMetrics.nameHeight + HUDMetrics.nameGap,
-            width: size.width - cap * 2,
+            width: size.width - HUDMetrics.padH * 2,
             height: cell
         )
         var x: CGFloat = 0
@@ -195,6 +191,8 @@ final class HUDContentView: NSView {
     override var isOpaque: Bool { false }
 
     override func draw(_ dirtyRect: NSRect) {
+        NSColor(calibratedRed: 0.1, green: 0.38, blue: 1, alpha: 0.96).setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: bounds.height / 2, yRadius: bounds.height / 2).fill()
         guard !caption.isEmpty else { return }
         let attrs: [NSAttributedString.Key: Any] = [
             .font: HUDMetrics.nameFont,
@@ -219,15 +217,12 @@ final class IconCell: NSView {
     }
 
     private let icon: NSImage
-    private let parked: Bool
 
     init(app: SwitcherApp) {
         icon = app.icon
-        parked = app.isParked
         super.init(frame: .zero)
         wantsLayer = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
-        alphaValue = parked ? 0.42 : 1
     }
 
     required init?(coder: NSCoder) { nil }

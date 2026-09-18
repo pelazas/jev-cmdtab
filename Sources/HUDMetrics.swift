@@ -3,11 +3,11 @@ import AppKit
 enum HUDMetrics {
     static let iconSize: CGFloat = 84
     static let minIconSize: CGFloat = 48
-    static let iconSpacing: CGFloat = 18
-    static let highlightPad: CGFloat = 4
-    static let padH: CGFloat = 22
-    static let padTop: CGFloat = 14
-    static let padBottom: CGFloat = 12
+    static let iconSpacing: CGFloat = 10
+    static let highlightPad: CGFloat = 2
+    static let padH: CGFloat = 16
+    static let padTop: CGFloat = 8
+    static let padBottom: CGFloat = 8
     static let nameHeight: CGFloat = 15
     static let nameGap: CGFloat = 1
     static let highlightRadius: CGFloat = 16
@@ -24,9 +24,8 @@ enum HUDMetrics {
 
     static func panelSize(count: Int, icon: CGFloat) -> NSSize {
         let cell = icon + highlightPad * 2
+        let width = padH * 2 + CGFloat(count) * cell + CGFloat(max(0, count - 1)) * iconSpacing
         let height = padTop + cell + nameGap + nameHeight + padBottom
-        let cap = height / 2
-        let width = cap * 2 + CGFloat(count) * cell + CGFloat(max(0, count - 1)) * iconSpacing
         return NSSize(width: width, height: height)
     }
 }

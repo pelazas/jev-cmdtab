@@ -3,10 +3,15 @@ import AppKit
 @main
 enum CmdTabApp {
     static func main() {
+        if CommandLine.arguments.contains("--self-check") {
+            Ranking.runSelfCheck()
+            return
+        }
         if CommandLine.arguments.contains("--list") {
             AppCatalog.shared.refresh()
             for app in AppCatalog.shared.ordered() {
-                print(app.name)
+                let mark = app.isParked ? "  parked" : ""
+                print(app.name + mark)
             }
             return
         }

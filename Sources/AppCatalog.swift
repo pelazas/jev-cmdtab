@@ -5,12 +5,25 @@ final class SwitcherApp {
     let bundleIdentifier: String?
     let name: String
     let icon: NSImage
+    let isHidden: Bool
+    let hasVisibleWindows: Bool
+    let dwell: TimeInterval
+    let isFrontmost: Bool
 
-    init(running: NSRunningApplication) {
+    var isParked: Bool {
+        if isFrontmost { return false }
+        return isHidden || !hasVisibleWindows
+    }
+
+    init(running: NSRunningApplication, visiblePids: Set<pid_t>, dwell: TimeInterval, frontmost: pid_t?) {
         pid = running.processIdentifier
         bundleIdentifier = running.bundleIdentifier
         name = running.localizedName ?? running.bundleIdentifier ?? "App"
         icon = running.icon ?? NSImage(named: NSImage.applicationIconName) ?? NSImage()
+        isHidden = running.isHidden
+        hasVisibleWindows = visiblePids.contains(running.processIdentifier)
+        self.dwell = dwell
+        isFrontmost = running.processIdentifier == frontmost
     }
 }
 
@@ -20,6 +33,9 @@ final class AppCatalog {
 
     private var mru: [pid_t] = []
     private var cache: [SwitcherApp] = []
+    private var dwell: [pid_t: TimeInterval] = [:]
+    private var dwellPid: pid_t?
+    private var dwellStart: Date?
 
     private init() {
         let nc = NSWorkspace.shared.notificationCenter
@@ -28,37 +44,52 @@ final class AppCatalog {
         nc.addObserver(self, selector: #selector(terminated(_:)), name: NSWorkspace.didTerminateApplicationNotification, object: nil)
         if let front = NSWorkspace.shared.frontmostApplication {
             mru = [front.processIdentifier]
+            dwellPid = front.processIdentifier
+            dwellStart = Date()
         }
         refresh()
     }
 
     func ordered() -> [SwitcherApp] {
-        if cache.isEmpty { refresh() }
+        refresh()
         return cache
     }
 
     func refresh() {
+        creditDwell()
         let running = NSWorkspace.shared.runningApplications.filter { app in
             app.activationPolicy == .regular
                 && !app.isTerminated
                 && app.bundleIdentifier != Self.selfBundleID
         }
-        let byPid = Dictionary(uniqueKeysWithValues: running.map { ($0.processIdentifier, SwitcherApp(running: $0)) })
+        let visible = VisibleWindows.ownerPids()
+        let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let byPid = Dictionary(uniqueKeysWithValues: running.map { app in
+            (app.processIdentifier, SwitcherApp(
+                running: app,
+                visiblePids: visible,
+                dwell: dwell[app.processIdentifier] ?? 0,
+                frontmost: front
+            ))
+        })
         var seen = Set<pid_t>()
-        var result: [SwitcherApp] = []
+        var mruList: [SwitcherApp] = []
         for pid in mru {
             if let app = byPid[pid] {
-                result.append(app)
+                mruList.append(app)
                 seen.insert(pid)
             }
         }
         for app in running {
             let pid = app.processIdentifier
             if seen.insert(pid).inserted, let item = byPid[pid] {
-                result.append(item)
+                mruList.append(item)
             }
         }
-        cache = result
+        let parked = mruList.map(\.isParked)
+        let mruIndex = Array(mruList.indices)
+        let dwells = mruList.map(\.dwell)
+        cache = Ranking.order(parked: parked, mru: mruIndex, dwell: dwells).map { mruList[$0] }
     }
 
     @objc private func activated(_ note: Notification) {
@@ -76,11 +107,27 @@ final class AppCatalog {
     @objc private func terminated(_ note: Notification) {
         guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
         mru.removeAll { $0 == app.processIdentifier }
+        dwell[app.processIdentifier] = nil
+        if dwellPid == app.processIdentifier {
+            dwellPid = nil
+            dwellStart = nil
+        }
         refresh()
     }
 
     private func remember(_ pid: pid_t) {
+        creditDwell()
         mru.removeAll { $0 == pid }
         mru.insert(pid, at: 0)
+        dwellPid = pid
+        dwellStart = Date()
+    }
+
+    private func creditDwell() {
+        let now = Date()
+        if let pid = dwellPid, let start = dwellStart {
+            dwell[pid, default: 0] += now.timeIntervalSince(start)
+        }
+        dwellStart = now
     }
 }

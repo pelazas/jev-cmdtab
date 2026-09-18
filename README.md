@@ -30,8 +30,8 @@ Same as Apple:
 - Escape — cancel
 - Release Cmd — switch
 
-`JevCmdTab --list` prints the MRU app list. `JevCmdTab --demo` shows the strip for three seconds.
+`JevCmdTab --list` prints the ranked app list (`parked` marks close-without-quit / hidden). `JevCmdTab --demo` shows the strip for three seconds. `JevCmdTab --self-check` runs the ranking test.
 
 ## Status
 
-Step 1 of [the roadmap](docs/ROADMAP.md): HUD + keys + MRU. No Jev ranking yet. Close-without-quit apps still sit in the middle; that is step 2.
+Step 2 of [the roadmap](docs/ROADMAP.md): HUD + local ranking. Close-without-quit, hidden, and empty Finder/Preview sit at the back. The list freezes while you hold Cmd. Jev is not wired yet.

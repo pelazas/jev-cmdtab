@@ -4,7 +4,7 @@ Replace the system Cmd+Tab HUD with one that looks the same and ranks better.
 
 Apple's switcher cannot be reordered. There is no API for that strip. Jev CmdTab eats Cmd+Tab, suppresses the system HUD, and draws its own. Same hold-Cmd, tap-Tab, row of icons.
 
-## Step 1 — Same HUD, same keys (this release)
+## Step 1 — Same HUD, same keys
 
 Clone the macOS 26 Command-Tab strip:
 
@@ -16,7 +16,7 @@ Clone the macOS 26 Command-Tab strip:
 
 No Jev. No window mode. If this does not feel like Apple's strip, later steps do not matter.
 
-## Step 2 — Local ranking
+## Step 2 — Local ranking (this release)
 
 Deterministic rules, no model:
 

@@ -35,7 +35,8 @@ enum CmdTabApp {
                 let running = NSRunningApplication(processIdentifier: app.pid)
                 let why = running.map { VisibleWindows.reason(for: $0) } ?? "?"
                 let mark = app.isParked ? "parked" : "active"
-                print("\(app.name)\t\(mark)\t\(why)")
+                let display = app.onCurrentDisplay ? "here" : "other-display"
+                print("\(app.name)\t\(mark)\t\(display)\t\(why)")
             }
             return
         }

@@ -9,13 +9,14 @@ final class SwitcherApp {
     let hasVisibleWindows: Bool
     let dwell: TimeInterval
     let isFrontmost: Bool
+    let onCurrentDisplay: Bool
 
     var isParked: Bool {
         if isFrontmost { return false }
         return isHidden || !hasVisibleWindows
     }
 
-    init(running: NSRunningApplication, visiblePids: Set<pid_t>, dwell: TimeInterval, frontmost: pid_t?) {
+    init(running: NSRunningApplication, visiblePids: Set<pid_t>, localPids: Set<pid_t>, dwell: TimeInterval, frontmost: pid_t?) {
         pid = running.processIdentifier
         bundleIdentifier = running.bundleIdentifier
         name = running.localizedName ?? running.bundleIdentifier ?? "App"
@@ -24,6 +25,7 @@ final class SwitcherApp {
         hasVisibleWindows = visiblePids.contains(running.processIdentifier)
         self.dwell = dwell
         isFrontmost = running.processIdentifier == frontmost
+        onCurrentDisplay = localPids.contains(running.processIdentifier) || isFrontmost
     }
 }
 
@@ -63,11 +65,13 @@ final class AppCatalog {
                 && app.bundleIdentifier != Self.selfBundleID
         }
         let visible = VisibleWindows.ownerPids()
+        let local = VisibleWindows.activeScreen().map { VisibleWindows.ownerPids(on: $0) } ?? []
         let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
         let byPid = Dictionary(uniqueKeysWithValues: running.map { app in
             (app.processIdentifier, SwitcherApp(
                 running: app,
                 visiblePids: visible,
+                localPids: local,
                 dwell: dwell[app.processIdentifier] ?? 0,
                 frontmost: front
             ))
@@ -87,9 +91,10 @@ final class AppCatalog {
             }
         }
         let parked = mruList.map(\.isParked)
+        let localFlags = mruList.map(\.onCurrentDisplay)
         let mruIndex = Array(mruList.indices)
         let dwells = mruList.map(\.dwell)
-        cache = Ranking.order(parked: parked, mru: mruIndex, dwell: dwells).map { mruList[$0] }
+        cache = Ranking.order(parked: parked, local: localFlags, mru: mruIndex, dwell: dwells).map { mruList[$0] }
     }
 
     @objc private func activated(_ note: Notification) {

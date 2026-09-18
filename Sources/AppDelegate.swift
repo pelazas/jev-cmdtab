@@ -14,8 +14,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = CGRequestPostEventAccess()
         hud.onCommit = { app in
             guard let running = NSRunningApplication(processIdentifier: app.pid) else { return }
+            let screen = VisibleWindows.activeScreen()
+            if let screen {
+                VisibleWindows.raiseOnScreen(pid: app.pid, screen: screen)
+            }
             running.unhide()
             running.activate()
+            if let screen {
+                DispatchQueue.main.async {
+                    VisibleWindows.raiseOnScreen(pid: app.pid, screen: screen)
+                }
+            }
         }
         buildStatusItem()
 

@@ -139,7 +139,7 @@ final class SwitcherHUD {
     }
 
     private func layoutOnScreen() {
-        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+        let screen = VisibleWindows.activeScreen()
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let icon = HUDMetrics.iconSize(count: apps.count, screenWidth: visible.width)
         let size = HUDMetrics.panelSize(count: max(apps.count, 1), icon: icon)

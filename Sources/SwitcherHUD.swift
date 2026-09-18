@@ -198,12 +198,15 @@ final class IconCell: NSView {
     }
 
     private let icon: NSImage
+    private let parked: Bool
 
     init(app: SwitcherApp) {
         icon = app.icon
+        parked = app.isParked
         super.init(frame: .zero)
         wantsLayer = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
+        alphaValue = parked ? 0.42 : 1
     }
 
     required init?(coder: NSCoder) { nil }

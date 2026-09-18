@@ -12,11 +12,9 @@ cd jev-cmdtab
 ./install.sh
 ```
 
-Then: System Settings → Privacy & Security → Accessibility → enable **Jev CmdTab**.
+Then: System Settings → Privacy & Security → Accessibility → enable **Jev CmdTab**. After every rebuild, toggle it off and on. Ad-hoc signing looks like a new app to macOS.
 
-Press Cmd+Tab. You should see Jev CmdTab's glass strip, not Apple's.
-
-Quit from the menu bar extra (left/right arrows icon).
+Press Cmd+Tab. The menu extra should say **Cmd+Tab intercept is on**. Parked apps (Finder with only the desktop, hidden, close-without-quit) sit at the right and look faded. If every other app has a real window, only those move.
 
 Rebuild and reinstall with the same `./install.sh`. The app lives in `/Applications/JevCmdTab.app` if that folder is writable, otherwise `~/Applications/JevCmdTab.app`.
 

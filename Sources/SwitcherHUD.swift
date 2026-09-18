@@ -219,7 +219,7 @@ final class HUDContentView: NSView {
         var x = captionCenterX - size.width / 2
         x = max(HUDMetrics.padH, min(x, bounds.width - HUDMetrics.padH - size.width))
         text.draw(
-            in: NSRect(x: x, y: HUDMetrics.padBottom, width: size.width, height: HUDMetrics.nameHeight),
+            in: NSRect(x: x, y: HUDMetrics.padBottom + HUDMetrics.nameLift, width: size.width, height: HUDMetrics.nameHeight),
             withAttributes: attrs
         )
     }
@@ -267,10 +267,11 @@ final class IconCell: NSView {
     override func draw(_ dirtyRect: NSRect) {
         if isChosen {
             let plateRect = bounds.insetBy(dx: HUDMetrics.highlightInset, dy: HUDMetrics.highlightInset)
-            let plate = NSBezierPath(roundedRect: plateRect, xRadius: HUDMetrics.highlightRadius, yRadius: HUDMetrics.highlightRadius)
+            let radius = HUDMetrics.iconCornerRadius(plateRect.width)
+            let plate = NSBezierPath(roundedRect: plateRect, xRadius: radius, yRadius: radius)
             plate.flatness = 0.1
             NSColor.black.withAlphaComponent(
-                NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? 0.28 : 0.08
+                NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? 0.45 : 0.18
             ).setFill()
             plate.fill()
         }

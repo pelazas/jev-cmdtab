@@ -10,11 +10,16 @@ enum HUDMetrics {
     static let padBottom: CGFloat = 3
     static let nameHeight: CGFloat = 13
     static let nameGap: CGFloat = 0
-    static let highlightRadius: CGFloat = 12
-    static let highlightInset: CGFloat = 6
+    static let nameLift: CGFloat = 5
+    static let highlightInset: CGFloat = 2
+    static let iconCornerRatio: CGFloat = 0.22
     static let barRadius: CGFloat = 26
     static let maxWidthFraction: CGFloat = 0.72
     static let nameFont = NSFont.systemFont(ofSize: 12, weight: .bold)
+
+    static func iconCornerRadius(_ size: CGFloat) -> CGFloat {
+        size * iconCornerRatio
+    }
 
     static func iconSize(count: Int, screenWidth: CGFloat) -> CGFloat {
         guard count > 0 else { return iconSize }

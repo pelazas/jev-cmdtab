@@ -149,7 +149,7 @@ final class SwitcherHUD {
         )
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
         glass.frame = NSRect(origin: .zero, size: size)
-        glass.cornerRadius = size.height / 2
+        glass.cornerRadius = HUDMetrics.barRadius
         root.frame = glass.bounds
 
         let cell = icon + HUDMetrics.highlightPad * 2
@@ -266,15 +266,15 @@ final class IconCell: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         if isChosen {
-            let plate = NSBezierPath(roundedRect: bounds, xRadius: HUDMetrics.highlightRadius, yRadius: HUDMetrics.highlightRadius)
+            let plateRect = bounds.insetBy(dx: HUDMetrics.highlightInset, dy: HUDMetrics.highlightInset)
+            let plate = NSBezierPath(roundedRect: plateRect, xRadius: HUDMetrics.highlightRadius, yRadius: HUDMetrics.highlightRadius)
             plate.flatness = 0.1
             NSColor.black.withAlphaComponent(
-                NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? 0.32 : 0.10
+                NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? 0.28 : 0.08
             ).setFill()
             plate.fill()
         }
 
-        let iconRect = bounds.insetBy(dx: HUDMetrics.highlightPad, dy: HUDMetrics.highlightPad)
-        icon.draw(in: iconRect)
+        icon.draw(in: bounds)
     }
 }

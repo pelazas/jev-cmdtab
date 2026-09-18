@@ -27,9 +27,14 @@ final class DestinationCache {
     }
 
     func reload() {
-        lastCount = -1
-        lastFront = 0
-        tick()
+        generation += 1
+        lastCount = NSPasteboard.general.changeCount
+        lastFront = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
+        if JevKey.value == nil {
+            set(bundleID: nil, status: "off")
+            return
+        }
+        set(bundleID: nil, status: "idle")
     }
 
     func tick() {

@@ -37,7 +37,8 @@ enum CmdTabApp {
                 let why = running.map { VisibleWindows.reason(for: $0) } ?? "?"
                 let mark = app.isParked ? "parked" : "active"
                 let display = app.onCurrentDisplay ? "here" : "other-display"
-                print("\(app.name)\t\(mark)\t\(display)\t\(why)")
+                let dest = app.isDestination ? "dest" : "-"
+                print("\(app.name)\t\(mark)\t\(display)\t\(dest)\t\(why)")
             }
             return
         }

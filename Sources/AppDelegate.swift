@@ -26,6 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+        DestinationCache.shared.onChange = { [weak self] in
+            self?.buildStatusItem()
+        }
         buildStatusItem()
 
         if CommandLine.arguments.contains("--demo") {
@@ -40,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.tap = tap
         _ = Accessibility.trusted(prompt: true)
         _ = tap.start()
+        DestinationCache.shared.start()
         buildStatusItem()
         Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] timer in
             if self?.tap?.start() == true {
@@ -65,6 +69,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(withTitle: "Cmd+Tab steal failed", action: nil, keyEquivalent: "")
         }
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Jev: \(DestinationCache.shared.status)", action: nil, keyEquivalent: "")
+        let pasteKey = NSMenuItem(title: "Paste TypeSafe API key", action: #selector(pasteJevKey), keyEquivalent: "")
+        pasteKey.target = self
+        menu.addItem(pasteKey)
+        if JevKey.value != nil {
+            let clearKey = NSMenuItem(title: "Clear TypeSafe API key", action: #selector(clearJevKey), keyEquivalent: "")
+            clearKey.target = self
+            menu.addItem(clearKey)
+        }
+        menu.addItem(.separator())
         let preview = NSMenuItem(title: "Show HUD", action: #selector(previewHUD), keyEquivalent: "")
         preview.target = self
         menu.addItem(preview)
@@ -77,6 +91,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         tap?.stop()
         NativeCommandTab.restore()
+    }
+
+    @objc private func pasteJevKey() {
+        guard let key = NSPasteboard.general.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              key.count >= 20
+        else { return }
+        try? JevKey.save(key)
+        DestinationCache.shared.reload()
+        buildStatusItem()
+    }
+
+    @objc private func clearJevKey() {
+        JevKey.clear()
+        DestinationCache.shared.reload()
+        buildStatusItem()
     }
 
     @objc private func previewHUD() {

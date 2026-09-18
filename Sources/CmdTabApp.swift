@@ -3,8 +3,29 @@ import AppKit
 @main
 enum CmdTabApp {
     static func main() {
+        if CommandLine.arguments.contains("--restore") {
+            NativeCommandTab.restore()
+            print("ok")
+            return
+        }
         if CommandLine.arguments.contains("--self-check") {
             Ranking.runSelfCheck()
+            return
+        }
+        if CommandLine.arguments.contains("--tap-probe") {
+            let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+            let hid = CGEvent.tapCreate(
+                tap: .cghidEventTap,
+                place: .headInsertEventTap,
+                options: .defaultTap,
+                eventsOfInterest: mask,
+                callback: { _, _, event, _ in Unmanaged.passUnretained(event) },
+                userInfo: nil
+            )
+            print("hid-tap: \(hid == nil ? "no" : "yes")")
+            print("ax: \(Accessibility.trusted(prompt: false) ? "yes" : "no")")
+            print("listen: \(CGPreflightListenEventAccess() ? "yes" : "no")")
+            print("post: \(CGPreflightPostEventAccess() ? "yes" : "no")")
             return
         }
         if CommandLine.arguments.contains("--list") {

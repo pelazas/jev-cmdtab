@@ -1,57 +1,127 @@
 import AppKit
-import Carbon.HIToolbox
+import Carbon
 import ApplicationServices
 
 final class HotkeyTap {
-    private var keyTap: CFMachPort?
-    private var mouseTap: CFMachPort?
-    private(set) var keysRunning = false
-    private var mouseRunning = false
+    private var tap: CFMachPort?
+    private var running = false
+    private var carbonOn = false
+    private var askedListen = false
+    private var handlerRef: EventHandlerRef?
+    private var tabRef: EventHotKeyRef?
+    private var shiftTabRef: EventHotKeyRef?
     private let hud: SwitcherHUD
+
+    private static let signature: OSType = 0x4A435442 // 'JCTB'
 
     init(hud: SwitcherHUD) {
         self.hud = hud
     }
 
+    var interceptsCommandTab: Bool { carbonOn }
+
     @discardableResult
     func start() -> Bool {
-        if keysRunning { return true }
-        let keys = installKeyTap(location: .cghidEventTap) || installKeyTap(location: .cgSessionEventTap)
-        _ = startMouse()
-        return keys
+        if running { return true }
+        NativeCommandTab.steal()
+        carbonOn = registerCarbon()
+        if !carbonOn {
+            NativeCommandTab.restore()
+            return false
+        }
+        _ = startFlagsTap()
+        running = true
+        return true
     }
 
-    var interceptsCommandTab: Bool { keysRunning }
+    func stop() {
+        if let tabRef { UnregisterEventHotKey(tabRef) }
+        if let shiftTabRef { UnregisterEventHotKey(shiftTabRef) }
+        tabRef = nil
+        shiftTabRef = nil
+        if let handlerRef { RemoveEventHandler(handlerRef) }
+        handlerRef = nil
+        if let tap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+        }
+        carbonOn = false
+        running = false
+        NativeCommandTab.restore()
+    }
 
-    private func startMouse() -> Bool {
-        if mouseRunning { return true }
-        let mask: CGEventMask = (1 << CGEventType.leftMouseDown.rawValue)
+    private func registerCarbon() -> Bool {
+        if tabRef != nil { return true }
+        let target = GetApplicationEventTarget()
+        var types = [EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))]
+        let userData = Unmanaged.passUnretained(self).toOpaque()
+        let installed = InstallEventHandler(
+            target,
+            { _, event, userData in
+                var id = EventHotKeyID()
+                GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &id
+                )
+                let me = Unmanaged<HotkeyTap>.fromOpaque(userData!).takeUnretainedValue()
+                let back = id.id == 2
+                DispatchQueue.main.async { me.carbonTab(back: back) }
+                return noErr
+            },
+            1,
+            &types,
+            userData,
+            &handlerRef
+        )
+        if installed != noErr { return false }
+
+        var tab: EventHotKeyRef?
+        let tabStatus = RegisterEventHotKey(
+            UInt32(kVK_Tab),
+            UInt32(cmdKey),
+            EventHotKeyID(signature: Self.signature, id: 1),
+            target,
+            0,
+            &tab
+        )
+        tabRef = tab
+
+        var shiftTab: EventHotKeyRef?
+        let shiftStatus = RegisterEventHotKey(
+            UInt32(kVK_Tab),
+            UInt32(cmdKey | shiftKey),
+            EventHotKeyID(signature: Self.signature, id: 2),
+            target,
+            0,
+            &shiftTab
+        )
+        shiftTabRef = shiftTab
+        return tabStatus == noErr && shiftStatus == noErr
+    }
+
+    private func carbonTab(back: Bool) {
+        if !hud.isVisible {
+            hud.show(apps: AppCatalog.shared.ordered(), holdCommand: true, backward: back)
+        } else {
+            hud.move(back ? -1 : 1)
+        }
+    }
+
+    private func startFlagsTap() -> Bool {
+        if tap != nil { return true }
+        let mask: CGEventMask = (1 << CGEventType.flagsChanged.rawValue)
+            | (1 << CGEventType.keyDown.rawValue)
+            | (1 << CGEventType.leftMouseDown.rawValue)
             | (1 << CGEventType.leftMouseUp.rawValue)
             | (1 << CGEventType.mouseMoved.rawValue)
             | (1 << CGEventType.leftMouseDragged.rawValue)
-        guard let tap = makeTap(location: .cghidEventTap, mask: mask) ?? makeTap(location: .cgSessionEventTap, mask: mask) else {
-            return false
-        }
-        mouseTap = tap
-        mouseRunning = true
-        return true
-    }
-
-    @discardableResult
-    private func installKeyTap(location: CGEventTapLocation) -> Bool {
-        let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
-            | (1 << CGEventType.keyUp.rawValue)
-            | (1 << CGEventType.flagsChanged.rawValue)
-        guard let tap = makeTap(location: location, mask: mask) else { return false }
-        keyTap = tap
-        keysRunning = true
-        return true
-    }
-
-    private func makeTap(location: CGEventTapLocation, mask: CGEventMask) -> CFMachPort? {
         let refcon = Unmanaged.passUnretained(self).toOpaque()
-        guard let tap = CGEvent.tapCreate(
-            tap: location,
+        let created = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: mask,
@@ -60,17 +130,34 @@ final class HotkeyTap {
                 return me.handle(type: type, event: event)
             },
             userInfo: refcon
-        ) else { return nil }
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        ) ?? CGEvent.tapCreate(
+            tap: .cghidEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: mask,
+            callback: { _, type, event, refcon in
+                let me = Unmanaged<HotkeyTap>.fromOpaque(refcon!).takeUnretainedValue()
+                return me.handle(type: type, event: event)
+            },
+            userInfo: refcon
+        )
+        guard let created else {
+            if !askedListen {
+                askedListen = true
+                _ = CGRequestListenEventAccess()
+            }
+            return false
+        }
+        tap = created
+        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, created, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-        return tap
+        CGEvent.tapEnable(tap: created, enable: true)
+        return true
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            if let keyTap { CGEvent.tapEnable(tap: keyTap, enable: true) }
-            if let mouseTap { CGEvent.tapEnable(tap: mouseTap, enable: true) }
+            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
 
@@ -85,7 +172,7 @@ final class HotkeyTap {
                 DispatchQueue.main.async { self.hud.click(at: point) }
                 return nil
             case .leftMouseUp:
-                return nil
+                return hud.isVisible ? nil : Unmanaged.passUnretained(event)
             default:
                 break
             }
@@ -94,28 +181,12 @@ final class HotkeyTap {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let flags = event.flags
         let cmd = flags.contains(.maskCommand)
-        let shift = flags.contains(.maskShift)
 
         if type == .flagsChanged {
-            if hud.isVisible && !cmd {
+            if hud.isVisible && hud.dismissOnCommandUp && !cmd {
                 DispatchQueue.main.async { self.hud.commit() }
             }
             return Unmanaged.passUnretained(event)
-        }
-
-        if type == .keyDown && cmd && keyCode == Int64(kVK_Tab) {
-            DispatchQueue.main.async {
-                if !self.hud.isVisible {
-                    self.hud.show(apps: AppCatalog.shared.ordered())
-                } else {
-                    self.hud.move(shift ? -1 : 1)
-                }
-            }
-            return nil
-        }
-
-        if type == .keyUp && cmd && keyCode == Int64(kVK_Tab) {
-            return hud.isVisible ? nil : Unmanaged.passUnretained(event)
         }
 
         if hud.isVisible && type == .keyDown && keyCode == Int64(kVK_Escape) {

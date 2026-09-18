@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     static var shared: AppDelegate?
@@ -9,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = nil
+        _ = CGRequestListenEventAccess()
+        _ = CGRequestPostEventAccess()
         hud.onCommit = { app in
             guard let running = NSRunningApplication(processIdentifier: app.pid) else { return }
             running.unhide()
@@ -17,8 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         buildStatusItem()
 
         if CommandLine.arguments.contains("--demo") {
-            AppCatalog.shared.refresh()
-            hud.show(apps: AppCatalog.shared.ordered())
+            previewHUD()
             demoTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { _ in
                 NSApp.terminate(nil)
             }
@@ -27,16 +29,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let tap = HotkeyTap(hud: hud)
         self.tap = tap
+        _ = Accessibility.trusted(prompt: true)
+        _ = tap.start()
+        buildStatusItem()
         Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] timer in
-            guard Accessibility.trusted(prompt: false) else { return }
             if self?.tap?.start() == true {
                 timer.invalidate()
                 self?.buildStatusItem()
             }
-        }
-        if Accessibility.trusted(prompt: true) {
-            _ = tap.start()
-            buildStatusItem()
         }
     }
 
@@ -52,22 +52,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let intercept = tap?.interceptsCommandTab == true
         if intercept {
             menu.addItem(withTitle: "Cmd+Tab intercept is on", action: nil, keyEquivalent: "")
-        } else if Accessibility.trusted(prompt: false) {
-            menu.addItem(withTitle: "Accessibility on, intercept failed. Toggle Jev CmdTab off and on.", action: nil, keyEquivalent: "")
         } else {
-            menu.addItem(withTitle: "Needs Accessibility…", action: nil, keyEquivalent: "")
-            let item = NSMenuItem(title: "Open Accessibility Settings", action: #selector(openPrivacy), keyEquivalent: "")
-            item.target = self
-            menu.addItem(item)
+            menu.addItem(withTitle: "Cmd+Tab steal failed", action: nil, keyEquivalent: "")
         }
+        menu.addItem(.separator())
+        let preview = NSMenuItem(title: "Show HUD", action: #selector(previewHUD), keyEquivalent: "")
+        preview.target = self
+        menu.addItem(preview)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit Jev CmdTab", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
         statusItem?.menu = menu
     }
 
-    @objc private func openPrivacy() {
-        let url = URL(string: "x-apple.systemsettings:com.apple.preference.security?Privacy_Accessibility")!
-        NSWorkspace.shared.open(url)
+    func applicationWillTerminate(_ notification: Notification) {
+        tap?.stop()
+        NativeCommandTab.restore()
+    }
+
+    @objc private func previewHUD() {
+        AppCatalog.shared.refresh()
+        hud.show(apps: AppCatalog.shared.ordered())
     }
 }

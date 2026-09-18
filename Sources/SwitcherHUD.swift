@@ -2,13 +2,14 @@ import AppKit
 
 final class SwitcherHUD {
     private let panel: SwitcherPanel
-    private let glass = NSGlassEffectView()
     private let root = HUDContentView()
     private let row = NSView()
     private var cells: [IconCell] = []
     private var apps: [SwitcherApp] = []
     private(set) var selected = 0
     private(set) var isVisible = false
+    private(set) var dismissOnCommandUp = false
+    private var holdTimer: Timer?
 
     var onCommit: ((SwitcherApp) -> Void)?
 
@@ -20,37 +21,39 @@ final class SwitcherHUD {
             defer: false
         )
         panel.isFloatingPanel = true
-        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.popUpMenuWindow)) + 2)
+        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.assistiveTechHighWindow)))
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = false
+        panel.hasShadow = true
         panel.hidesOnDeactivate = false
         panel.animationBehavior = .none
         panel.ignoresMouseEvents = false
         panel.acceptsMouseMovedEvents = true
         panel.becomesKeyOnlyIfNeeded = true
 
-        glass.style = .clear
-        glass.tintColor = NSColor(calibratedWhite: 0.08, alpha: 1)
-        glass.contentView = root
-        glass.autoresizingMask = [.width, .height]
-
+        root.wantsLayer = true
+        root.layer?.backgroundColor = NSColor(calibratedRed: 0.1, green: 0.38, blue: 1, alpha: 0.96).cgColor
+        root.autoresizingMask = [.width, .height]
         root.addSubview(row)
-        panel.contentView = glass
+        panel.contentView = root
     }
 
-    func show(apps: [SwitcherApp]) {
+    func show(apps: [SwitcherApp], holdCommand: Bool = false, backward: Bool = false) {
         guard !apps.isEmpty else { return }
         self.apps = apps
-        selected = apps.count > 1 ? 1 : 0
+        if backward, apps.count > 1 {
+            selected = apps.count - 1
+        } else {
+            selected = apps.count > 1 ? 1 : 0
+        }
+        dismissOnCommandUp = holdCommand
         rebuild()
         layoutOnScreen()
-        panel.appearance = NSApp.effectiveAppearance
-        glass.appearance = NSApp.effectiveAppearance
         panel.alphaValue = 1
         panel.orderFrontRegardless()
         isVisible = true
+        watchCommandHold()
     }
 
     func move(_ delta: Int) {
@@ -88,7 +91,10 @@ final class SwitcherHUD {
     func cancel() { hide() }
 
     func hide() {
+        holdTimer?.invalidate()
+        holdTimer = nil
         isVisible = false
+        dismissOnCommandUp = false
         panel.orderOut(nil)
     }
 
@@ -127,15 +133,16 @@ final class SwitcherHUD {
             y: visible.midY - size.height / 2
         )
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
-        glass.frame = NSRect(origin: .zero, size: size)
-        glass.cornerRadius = size.height / 2
-        root.frame = glass.bounds
+        root.frame = NSRect(origin: .zero, size: size)
+        root.layer?.cornerRadius = size.height / 2
+        root.layer?.masksToBounds = true
 
         let cell = icon + HUDMetrics.highlightPad * 2
+        let cap = size.height / 2
         row.frame = NSRect(
-            x: HUDMetrics.padH,
+            x: cap,
             y: HUDMetrics.padBottom + HUDMetrics.nameHeight + HUDMetrics.nameGap,
-            width: size.width - HUDMetrics.padH * 2,
+            width: size.width - cap * 2,
             height: cell
         )
         var x: CGFloat = 0
@@ -144,6 +151,20 @@ final class SwitcherHUD {
             x += cell + HUDMetrics.iconSpacing
         }
         refreshSelection()
+    }
+
+    private func watchCommandHold() {
+        holdTimer?.invalidate()
+        holdTimer = nil
+        guard dismissOnCommandUp else { return }
+        let timer = Timer(timeInterval: 0.03, repeats: true) { [weak self] _ in
+            guard let self, self.isVisible, self.dismissOnCommandUp else { return }
+            if !CGEventSource.flagsState(.hidSystemState).contains(.maskCommand) {
+                self.commit()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        holdTimer = timer
     }
 
     private func refreshSelection() {
@@ -163,7 +184,7 @@ final class SwitcherHUD {
 }
 
 final class SwitcherPanel: NSPanel {
-    override var canBecomeKey: Bool { false }
+    override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
 
@@ -177,7 +198,7 @@ final class HUDContentView: NSView {
         guard !caption.isEmpty else { return }
         let attrs: [NSAttributedString.Key: Any] = [
             .font: HUDMetrics.nameFont,
-            .foregroundColor: NSColor.labelColor,
+            .foregroundColor: NSColor.white,
         ]
         let text = caption as NSString
         let size = text.size(withAttributes: attrs)
@@ -241,11 +262,6 @@ final class IconCell: NSView {
         }
 
         let iconRect = bounds.insetBy(dx: HUDMetrics.highlightPad, dy: HUDMetrics.highlightPad)
-        let crop = iconRect.width * HUDMetrics.iconCrop
-        let drawRect = iconRect.insetBy(dx: -crop, dy: -crop)
-        NSGraphicsContext.saveGraphicsState()
-        NSBezierPath(rect: iconRect).addClip()
-        icon.draw(in: drawRect)
-        NSGraphicsContext.restoreGraphicsState()
+        icon.draw(in: iconRect)
     }
 }

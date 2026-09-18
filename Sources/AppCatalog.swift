@@ -94,7 +94,16 @@ final class AppCatalog {
         let localFlags = mruList.map(\.onCurrentDisplay)
         let mruIndex = Array(mruList.indices)
         let dwells = mruList.map(\.dwell)
-        cache = Ranking.order(parked: parked, local: localFlags, mru: mruIndex, dwell: dwells).map { mruList[$0] }
+        let frontFlags = mruList.map(\.isFrontmost)
+        let destFlags = mruList.map { _ in false }
+        cache = Ranking.order(
+            frontmost: frontFlags,
+            parked: parked,
+            local: localFlags,
+            dest: destFlags,
+            mru: mruIndex,
+            dwell: dwells
+        ).map { mruList[$0] }
     }
 
     @objc private func activated(_ note: Notification) {

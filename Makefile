@@ -13,7 +13,8 @@ $(BIN): $(SRCS) $(PLIST)
 	cp $(PLIST) $(BUNDLE)/Contents/Info.plist
 	printf 'APPL????' > $(BUNDLE)/Contents/PkgInfo
 	swiftc -parse-as-library -O \
-		-framework AppKit -framework Carbon -framework ApplicationServices \
+		-F/System/Library/PrivateFrameworks \
+		-framework AppKit -framework Carbon -framework ApplicationServices -framework SkyLight \
 		-o $(BIN) $(SRCS)
 	codesign --force --sign - --identifier com.pelazas.jevcmdtab $(BUNDLE)
 

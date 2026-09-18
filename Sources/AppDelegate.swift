@@ -49,9 +49,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
         let menu = NSMenu()
-        let ok = Accessibility.trusted(prompt: false)
-        menu.addItem(withTitle: ok ? "Jev CmdTab is running" : "Needs Accessibility…", action: nil, keyEquivalent: "")
-        if !ok {
+        let intercept = tap?.interceptsCommandTab == true
+        if intercept {
+            menu.addItem(withTitle: "Cmd+Tab intercept is on", action: nil, keyEquivalent: "")
+        } else if Accessibility.trusted(prompt: false) {
+            menu.addItem(withTitle: "Accessibility on, intercept failed. Toggle Jev CmdTab off and on.", action: nil, keyEquivalent: "")
+        } else {
+            menu.addItem(withTitle: "Needs Accessibility…", action: nil, keyEquivalent: "")
             let item = NSMenuItem(title: "Open Accessibility Settings", action: #selector(openPrivacy), keyEquivalent: "")
             item.target = self
             menu.addItem(item)

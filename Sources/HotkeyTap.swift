@@ -3,8 +3,10 @@ import Carbon.HIToolbox
 import ApplicationServices
 
 final class HotkeyTap {
-    private var tap: CFMachPort?
-    private var running = false
+    private var keyTap: CFMachPort?
+    private var mouseTap: CFMachPort?
+    private(set) var keysRunning = false
+    private var mouseRunning = false
     private let hud: SwitcherHUD
 
     init(hud: SwitcherHUD) {
@@ -13,39 +15,62 @@ final class HotkeyTap {
 
     @discardableResult
     func start() -> Bool {
-        if running { return true }
-        let mask = (1 << CGEventType.keyDown.rawValue)
-            | (1 << CGEventType.keyUp.rawValue)
-            | (1 << CGEventType.flagsChanged.rawValue)
-            | (1 << CGEventType.leftMouseDown.rawValue)
+        if keysRunning { return true }
+        let keys = installKeyTap(location: .cghidEventTap) || installKeyTap(location: .cgSessionEventTap)
+        _ = startMouse()
+        return keys
+    }
+
+    var interceptsCommandTab: Bool { keysRunning }
+
+    private func startMouse() -> Bool {
+        if mouseRunning { return true }
+        let mask: CGEventMask = (1 << CGEventType.leftMouseDown.rawValue)
             | (1 << CGEventType.leftMouseUp.rawValue)
             | (1 << CGEventType.mouseMoved.rawValue)
             | (1 << CGEventType.leftMouseDragged.rawValue)
+        guard let tap = makeTap(location: .cghidEventTap, mask: mask) ?? makeTap(location: .cgSessionEventTap, mask: mask) else {
+            return false
+        }
+        mouseTap = tap
+        mouseRunning = true
+        return true
+    }
+
+    @discardableResult
+    private func installKeyTap(location: CGEventTapLocation) -> Bool {
+        let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
+            | (1 << CGEventType.keyUp.rawValue)
+            | (1 << CGEventType.flagsChanged.rawValue)
+        guard let tap = makeTap(location: location, mask: mask) else { return false }
+        keyTap = tap
+        keysRunning = true
+        return true
+    }
+
+    private func makeTap(location: CGEventTapLocation, mask: CGEventMask) -> CFMachPort? {
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         guard let tap = CGEvent.tapCreate(
-            tap: .cghidEventTap,
+            tap: location,
             place: .headInsertEventTap,
             options: .defaultTap,
-            eventsOfInterest: CGEventMask(mask),
+            eventsOfInterest: mask,
             callback: { _, type, event, refcon in
                 let me = Unmanaged<HotkeyTap>.fromOpaque(refcon!).takeUnretainedValue()
                 return me.handle(type: type, event: event)
             },
             userInfo: refcon
-        ) else {
-            return false
-        }
-        self.tap = tap
+        ) else { return nil }
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
-        running = true
-        return true
+        return tap
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            if let keyTap { CGEvent.tapEnable(tap: keyTap, enable: true) }
+            if let mouseTap { CGEvent.tapEnable(tap: mouseTap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
 

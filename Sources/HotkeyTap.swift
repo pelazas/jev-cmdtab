@@ -17,6 +17,10 @@ final class HotkeyTap {
         let mask = (1 << CGEventType.keyDown.rawValue)
             | (1 << CGEventType.keyUp.rawValue)
             | (1 << CGEventType.flagsChanged.rawValue)
+            | (1 << CGEventType.leftMouseDown.rawValue)
+            | (1 << CGEventType.leftMouseUp.rawValue)
+            | (1 << CGEventType.mouseMoved.rawValue)
+            | (1 << CGEventType.leftMouseDragged.rawValue)
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         guard let tap = CGEvent.tapCreate(
             tap: .cghidEventTap,
@@ -43,6 +47,23 @@ final class HotkeyTap {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
+        }
+
+        if hud.isVisible {
+            switch type {
+            case .mouseMoved, .leftMouseDragged:
+                let point = event.unflippedLocation
+                DispatchQueue.main.async { self.hud.hover(at: point) }
+                return Unmanaged.passUnretained(event)
+            case .leftMouseDown:
+                let point = event.unflippedLocation
+                DispatchQueue.main.async { self.hud.click(at: point) }
+                return nil
+            case .leftMouseUp:
+                return nil
+            default:
+                break
+            }
         }
 
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)

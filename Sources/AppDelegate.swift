@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var demoTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.appearance = nil
         hud.onCommit = { app in
             guard let running = NSRunningApplication(processIdentifier: app.pid) else { return }
             running.unhide()

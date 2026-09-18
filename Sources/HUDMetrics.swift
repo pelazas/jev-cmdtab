@@ -1,18 +1,19 @@
 import AppKit
 
 enum HUDMetrics {
-    static let iconSize: CGFloat = 72
-    static let minIconSize: CGFloat = 40
-    static let iconSpacing: CGFloat = 10
-    static let highlightPad: CGFloat = 6
+    static let iconSize: CGFloat = 84
+    static let minIconSize: CGFloat = 48
+    static let iconSpacing: CGFloat = 18
+    static let highlightPad: CGFloat = 4
     static let padH: CGFloat = 22
-    static let padTop: CGFloat = 18
-    static let padBottom: CGFloat = 14
-    static let nameHeight: CGFloat = 22
-    static let nameGap: CGFloat = 6
-    static let cornerRadius: CGFloat = 28
-    static let highlightRadius: CGFloat = 14
+    static let padTop: CGFloat = 14
+    static let padBottom: CGFloat = 12
+    static let nameHeight: CGFloat = 15
+    static let nameGap: CGFloat = 1
+    static let highlightRadius: CGFloat = 16
+    static let iconCrop: CGFloat = 0.18
     static let maxWidthFraction: CGFloat = 0.72
+    static let nameFont = NSFont.systemFont(ofSize: 13, weight: .regular)
 
     static func iconSize(count: Int, screenWidth: CGFloat) -> CGFloat {
         guard count > 0 else { return iconSize }

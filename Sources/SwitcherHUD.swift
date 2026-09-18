@@ -1,12 +1,10 @@
 import AppKit
-import ApplicationServices
 
 final class SwitcherHUD {
-    private let panel: NSPanel
+    private let panel: SwitcherPanel
     private let glass = NSGlassEffectView()
-    private let root = NSView()
+    private let root = HUDContentView()
     private let row = NSView()
-    private let nameLabel = NSTextField(labelWithString: "")
     private var cells: [IconCell] = []
     private var apps: [SwitcherApp] = []
     private(set) var selected = 0
@@ -15,37 +13,30 @@ final class SwitcherHUD {
     var onCommit: ((SwitcherApp) -> Void)?
 
     init() {
-        panel = NSPanel(
+        panel = SwitcherPanel(
             contentRect: NSRect(x: 0, y: 0, width: 200, height: 100),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
-            defer: true
+            defer: false
         )
         panel.isFloatingPanel = true
-        panel.level = .popUpMenu
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.popUpMenuWindow)) + 2)
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        panel.hasShadow = false
         panel.hidesOnDeactivate = false
-        panel.animationBehavior = .utilityWindow
+        panel.animationBehavior = .none
         panel.ignoresMouseEvents = false
+        panel.acceptsMouseMovedEvents = true
+        panel.becomesKeyOnlyIfNeeded = true
 
-        glass.cornerRadius = HUDMetrics.cornerRadius
-        glass.style = .regular
+        glass.style = .clear
+        glass.tintColor = NSColor(calibratedWhite: 0.08, alpha: 1)
         glass.contentView = root
         glass.autoresizingMask = [.width, .height]
 
-        nameLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        nameLabel.alignment = .center
-        nameLabel.textColor = .labelColor
-        nameLabel.backgroundColor = .clear
-        nameLabel.isBezeled = false
-        nameLabel.isEditable = false
-        nameLabel.lineBreakMode = .byTruncatingTail
-
         root.addSubview(row)
-        root.addSubview(nameLabel)
         panel.contentView = glass
     }
 
@@ -55,19 +46,33 @@ final class SwitcherHUD {
         selected = apps.count > 1 ? 1 : 0
         rebuild()
         layoutOnScreen()
-        panel.alphaValue = 0
+        panel.appearance = NSApp.effectiveAppearance
+        glass.appearance = NSApp.effectiveAppearance
+        panel.alphaValue = 1
         panel.orderFrontRegardless()
         isVisible = true
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.08
-            panel.animator().alphaValue = 1
-        }
     }
 
     func move(_ delta: Int) {
         guard !apps.isEmpty else { return }
-        selected = (selected + delta + apps.count) % apps.count
+        select((selected + delta + apps.count) % apps.count)
+    }
+
+    func select(_ index: Int) {
+        guard apps.indices.contains(index) else { return }
+        selected = index
         refreshSelection()
+    }
+
+    func hover(at screenPoint: CGPoint) {
+        if let i = index(at: screenPoint) { select(i) }
+    }
+
+    func click(at screenPoint: CGPoint) {
+        if let i = index(at: screenPoint) {
+            select(i)
+            commit()
+        }
     }
 
     func commit() {
@@ -80,22 +85,30 @@ final class SwitcherHUD {
         onCommit?(app)
     }
 
-    func cancel() {
-        hide()
-    }
+    func cancel() { hide() }
 
     func hide() {
         isVisible = false
         panel.orderOut(nil)
-        panel.alphaValue = 1
+    }
+
+    func index(at screenPoint: CGPoint) -> Int? {
+        let inWindow = panel.convertPoint(fromScreen: screenPoint)
+        let inRoot = root.convert(inWindow, from: nil)
+        let inRow = row.convert(inRoot, from: root)
+        for (i, cell) in cells.enumerated() {
+            if cell.frame.insetBy(dx: -4, dy: -4).contains(inRow) { return i }
+        }
+        return nil
     }
 
     private func rebuild() {
         cells.forEach { $0.removeFromSuperview() }
         cells = apps.enumerated().map { index, app in
             let cell = IconCell(app: app)
+            cell.onHover = { [weak self] in self?.select(index) }
             cell.onPick = { [weak self] in
-                self?.selected = index
+                self?.select(index)
                 self?.commit()
             }
             row.addSubview(cell)
@@ -115,6 +128,7 @@ final class SwitcherHUD {
         )
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
         glass.frame = NSRect(origin: .zero, size: size)
+        glass.cornerRadius = size.height / 2
         root.frame = glass.bounds
 
         let cell = icon + HUDMetrics.highlightPad * 2
@@ -126,67 +140,109 @@ final class SwitcherHUD {
         )
         var x: CGFloat = 0
         for cellView in cells {
-            cellView.iconSide = icon
             cellView.frame = NSRect(x: x, y: 0, width: cell, height: cell)
-            cellView.layoutIcon()
             x += cell + HUDMetrics.iconSpacing
         }
-        nameLabel.frame = NSRect(
-            x: HUDMetrics.padH,
-            y: HUDMetrics.padBottom,
-            width: size.width - HUDMetrics.padH * 2,
-            height: HUDMetrics.nameHeight
-        )
+        refreshSelection()
     }
 
     private func refreshSelection() {
         for (i, cell) in cells.enumerated() {
             cell.isChosen = i == selected
         }
-        nameLabel.stringValue = apps.indices.contains(selected) ? apps[selected].name : ""
+        if apps.indices.contains(selected), selected < cells.count {
+            let cell = cells[selected]
+            let mid = row.frame.minX + cell.frame.midX
+            root.caption = apps[selected].name
+            root.captionCenterX = mid
+        } else {
+            root.caption = ""
+        }
+        root.needsDisplay = true
+    }
+}
+
+final class SwitcherPanel: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
+}
+
+final class HUDContentView: NSView {
+    var caption = ""
+    var captionCenterX: CGFloat = 0
+
+    override var isOpaque: Bool { false }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard !caption.isEmpty else { return }
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: HUDMetrics.nameFont,
+            .foregroundColor: NSColor.labelColor,
+        ]
+        let text = caption as NSString
+        let size = text.size(withAttributes: attrs)
+        var x = captionCenterX - size.width / 2
+        x = max(HUDMetrics.padH, min(x, bounds.width - HUDMetrics.padH - size.width))
+        text.draw(
+            in: NSRect(x: x, y: HUDMetrics.padBottom, width: size.width, height: HUDMetrics.nameHeight),
+            withAttributes: attrs
+        )
     }
 }
 
 final class IconCell: NSView {
-    var iconSide: CGFloat = HUDMetrics.iconSize
     var onPick: (() -> Void)?
+    var onHover: (() -> Void)?
     var isChosen = false {
-        didSet { highlight.isHidden = !isChosen }
+        didSet { if isChosen != oldValue { needsDisplay = true } }
     }
 
-    private let highlight = NSView()
-    private let imageView = NSImageView()
+    private let icon: NSImage
 
     init(app: SwitcherApp) {
+        icon = app.icon
         super.init(frame: .zero)
         wantsLayer = true
-
-        highlight.wantsLayer = true
-        highlight.layer?.cornerRadius = HUDMetrics.highlightRadius
-        highlight.layer?.cornerCurve = .continuous
-        highlight.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.12).cgColor
-        highlight.isHidden = true
-
-        imageView.image = app.icon
-        imageView.imageScaling = .scaleProportionallyUpOrDown
-        imageView.wantsLayer = true
-
-        addSubview(highlight)
-        addSubview(imageView)
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
     }
 
     required init?(coder: NSCoder) { nil }
 
-    func layoutIcon() {
-        highlight.frame = bounds
-        imageView.frame = bounds.insetBy(dx: HUDMetrics.highlightPad, dy: HUDMetrics.highlightPad)
+    override var isOpaque: Bool { false }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach { removeTrackingArea($0) }
+        addTrackingArea(NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        ))
     }
 
-    override func mouseDown(with event: NSEvent) {
-        onPick?()
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(point) ? self : nil
     }
 
-    override func viewDidChangeEffectiveAppearance() {
-        highlight.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.12).cgColor
+    override func mouseEntered(with event: NSEvent) { onHover?() }
+
+    override func mouseDown(with event: NSEvent) { onPick?() }
+
+    override func draw(_ dirtyRect: NSRect) {
+        if isChosen {
+            let plate = NSBezierPath(roundedRect: bounds, xRadius: HUDMetrics.highlightRadius, yRadius: HUDMetrics.highlightRadius)
+            plate.flatness = 0.1
+            NSColor(calibratedWhite: 0, alpha: NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? 0.38 : 0.12).setFill()
+            plate.fill()
+        }
+
+        let iconRect = bounds.insetBy(dx: HUDMetrics.highlightPad, dy: HUDMetrics.highlightPad)
+        let crop = iconRect.width * HUDMetrics.iconCrop
+        let drawRect = iconRect.insetBy(dx: -crop, dy: -crop)
+        NSGraphicsContext.saveGraphicsState()
+        NSBezierPath(rect: iconRect).addClip()
+        icon.draw(in: drawRect)
+        NSGraphicsContext.restoreGraphicsState()
     }
 }

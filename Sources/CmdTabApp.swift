@@ -10,6 +10,7 @@ enum CmdTabApp {
         }
         if CommandLine.arguments.contains("--self-check") {
             Ranking.runSelfCheck()
+            JevClient.runSelfCheck()
             return
         }
         if CommandLine.arguments.contains("--tap-probe") {

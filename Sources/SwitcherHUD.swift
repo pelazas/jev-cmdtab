@@ -2,6 +2,7 @@ import AppKit
 
 final class SwitcherHUD {
     private let panel: SwitcherPanel
+    private let glass = NSGlassEffectView()
     private let root = HUDContentView()
     private let row = NSView()
     private var cells: [IconCell] = []
@@ -32,10 +33,11 @@ final class SwitcherHUD {
         panel.acceptsMouseMovedEvents = true
         panel.becomesKeyOnlyIfNeeded = true
 
-        root.wantsLayer = true
-        root.autoresizingMask = [.width, .height]
+        glass.style = .regular
+        glass.autoresizingMask = [.width, .height]
+        glass.contentView = root
         root.addSubview(row)
-        panel.contentView = root
+        panel.contentView = glass
     }
 
     func show(apps: [SwitcherApp], holdCommand: Bool = false, backward: Bool = false) {
@@ -49,6 +51,8 @@ final class SwitcherHUD {
         dismissOnCommandUp = holdCommand
         rebuild()
         layoutOnScreen()
+        panel.appearance = NSApp.effectiveAppearance
+        glass.appearance = NSApp.effectiveAppearance
         panel.alphaValue = 1
         panel.orderFrontRegardless()
         isVisible = true
@@ -132,7 +136,9 @@ final class SwitcherHUD {
             y: visible.midY - size.height / 2
         )
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
-        root.frame = NSRect(origin: .zero, size: size)
+        glass.frame = NSRect(origin: .zero, size: size)
+        glass.cornerRadius = size.height / 2
+        root.frame = glass.bounds
 
         let cell = icon + HUDMetrics.highlightPad * 2
         row.frame = NSRect(
@@ -191,12 +197,10 @@ final class HUDContentView: NSView {
     override var isOpaque: Bool { false }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor(calibratedRed: 0.1, green: 0.38, blue: 1, alpha: 0.96).setFill()
-        NSBezierPath(roundedRect: bounds, xRadius: bounds.height / 2, yRadius: bounds.height / 2).fill()
         guard !caption.isEmpty else { return }
         let attrs: [NSAttributedString.Key: Any] = [
             .font: HUDMetrics.nameFont,
-            .foregroundColor: NSColor.white,
+            .foregroundColor: NSColor.labelColor,
         ]
         let text = caption as NSString
         let size = text.size(withAttributes: attrs)
@@ -252,7 +256,9 @@ final class IconCell: NSView {
         if isChosen {
             let plate = NSBezierPath(roundedRect: bounds, xRadius: HUDMetrics.highlightRadius, yRadius: HUDMetrics.highlightRadius)
             plate.flatness = 0.1
-            NSColor(calibratedWhite: 0, alpha: NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? 0.38 : 0.12).setFill()
+            NSColor.black.withAlphaComponent(
+                NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? 0.32 : 0.10
+            ).setFill()
             plate.fill()
         }
 

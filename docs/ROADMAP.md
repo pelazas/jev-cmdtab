@@ -32,7 +32,7 @@ Default to windows, not apps. App-only mode stays for people who want stock Cmd+
 
 ## Step 4 — Jev, opt-in
 
-Jev never computes recency. It only scores leftover clutter vs destination given clipboard, titles, and frontmost app. Runs in the background; the keypress reads a cache. Default ranking stays on-device. US API is a setting.
+Jev never computes recency. It scores destination from clipboard plus frontmost app, in the background. The keypress reads a cache. No key, no network. Window titles are still later.
 
 ## Step 5 — Ship
 

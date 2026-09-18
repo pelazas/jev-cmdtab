@@ -28,8 +28,16 @@ Same as Apple:
 - Escape — cancel
 - Release Cmd — switch
 
-`JevCmdTab --list` prints the ranked app list (`parked` marks close-without-quit / hidden). `JevCmdTab --demo` shows the strip for three seconds. `JevCmdTab --self-check` runs the ranking test.
+`JevCmdTab --list` prints the ranked app list (`parked` marks close-without-quit / hidden, `dest` is the Jev pick). `JevCmdTab --demo` shows the strip for three seconds. `JevCmdTab --self-check` runs the ranking tests.
+
+## Jev
+
+Optional. Recency, parked apps, and the current display stay local. Jev only answers "where are you trying to go" from the clipboard.
+
+Copy a TypeSafe API key from [typesafe.ai](https://typesafe.ai/), then menu extra → **Paste TypeSafe API key**. The menu reads `Jev: off` until then, `Jev: idle` when nothing in the clipboard points at an app, or `Jev: Mail` when it has a pick. That app sits next to the current one on the next Cmd+Tab.
+
+The clipboard is sent to TypeSafe in the US. Concealed copy (password managers) is skipped. No key means no network. `TYPESAFE_API_KEY` also works if you launch from a shell.
 
 ## Status
 
-Step 2 of [the roadmap](docs/ROADMAP.md): HUD + local ranking. Close-without-quit, hidden, and empty Finder/Preview sit at the back. The list freezes while you hold Cmd. Jev is not wired yet.
+HUD, local ranking, same-display switching, and optional Jev destination. Window mode is still later. See [the roadmap](docs/ROADMAP.md).

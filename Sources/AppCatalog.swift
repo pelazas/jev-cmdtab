@@ -16,7 +16,7 @@ final class SwitcherApp {
 
 final class AppCatalog {
     static let shared = AppCatalog()
-    static let selfBundleID = "com.pelazas.cmdtab"
+    static let selfBundleID = "com.pelazas.jevcmdtab"
 
     private var mru: [pid_t] = []
     private var cache: [SwitcherApp] = []

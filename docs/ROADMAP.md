@@ -1,8 +1,8 @@
-# CmdTab roadmap
+# Jev CmdTab roadmap
 
 Replace the system Cmd+Tab HUD with one that looks the same and ranks better.
 
-Apple's switcher cannot be reordered. There is no API for that strip. CmdTab eats Cmd+Tab, suppresses the system HUD, and draws its own. Same hold-Cmd, tap-Tab, row of icons.
+Apple's switcher cannot be reordered. There is no API for that strip. Jev CmdTab eats Cmd+Tab, suppresses the system HUD, and draws its own. Same hold-Cmd, tap-Tab, row of icons.
 
 ## Step 1 — Same HUD, same keys (this release)
 

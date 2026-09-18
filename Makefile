@@ -1,4 +1,4 @@
-APP = CmdTab
+APP = JevCmdTab
 BUNDLE = .build/$(APP).app
 BIN = $(BUNDLE)/Contents/MacOS/$(APP)
 SRCS = $(wildcard Sources/*.swift)
@@ -15,7 +15,7 @@ $(BIN): $(SRCS) $(PLIST)
 	swiftc -parse-as-library -O \
 		-framework AppKit -framework Carbon -framework ApplicationServices \
 		-o $(BIN) $(SRCS)
-	codesign --force --sign - --identifier com.pelazas.cmdtab $(BUNDLE)
+	codesign --force --sign - --identifier com.pelazas.jevcmdtab $(BUNDLE)
 
 run: app
 	open $(BUNDLE)

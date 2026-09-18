@@ -44,19 +44,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             statusItem?.button?.image = NSImage(
                 systemSymbolName: "arrow.left.arrow.right",
-                accessibilityDescription: "CmdTab"
+                accessibilityDescription: "Jev CmdTab"
             )
         }
         let menu = NSMenu()
         let ok = Accessibility.trusted(prompt: false)
-        menu.addItem(withTitle: ok ? "CmdTab is running" : "Needs Accessibility…", action: nil, keyEquivalent: "")
+        menu.addItem(withTitle: ok ? "Jev CmdTab is running" : "Needs Accessibility…", action: nil, keyEquivalent: "")
         if !ok {
             let item = NSMenuItem(title: "Open Accessibility Settings", action: #selector(openPrivacy), keyEquivalent: "")
             item.target = self
             menu.addItem(item)
         }
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Quit CmdTab", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit Jev CmdTab", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
         statusItem?.menu = menu
     }

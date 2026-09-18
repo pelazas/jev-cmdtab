@@ -8,9 +8,9 @@ else
   DEST="$HOME/Applications"
   mkdir -p "$DEST"
 fi
-killall CmdTab 2>/dev/null || true
-rm -rf "$DEST/CmdTab.app"
-cp -R .build/CmdTab.app "$DEST/CmdTab.app"
-open "$DEST/CmdTab.app"
-echo "Installed $DEST/CmdTab.app"
-echo "Enable CmdTab in System Settings → Privacy & Security → Accessibility, then press Cmd+Tab."
+killall CmdTab JevCmdTab 2>/dev/null || true
+rm -rf "$DEST/CmdTab.app" "$DEST/JevCmdTab.app"
+cp -R .build/JevCmdTab.app "$DEST/JevCmdTab.app"
+open "$DEST/JevCmdTab.app"
+echo "Installed $DEST/JevCmdTab.app"
+echo "Enable Jev CmdTab in System Settings → Privacy & Security → Accessibility, then press Cmd+Tab."
